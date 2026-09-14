@@ -5155,6 +5155,7 @@
     }
     function renderNotesWorkspace() {
       renderNotesTabs(); document.getElementById("noteToolPencil").classList.toggle("active", _notesTool === "pencil"); document.getElementById("noteToolHighlighter").classList.toggle("active", _notesTool === "highlighter"); document.getElementById("noteToolEraser").classList.toggle("active", _notesTool === "eraser"); document.getElementById("noteToolText").classList.toggle("active", _notesTool === "text"); document.getElementById("noteToolPan").classList.toggle("active", _notesTool === "pan");
+      document.querySelectorAll("[data-note-color]").forEach(b => b.classList.toggle("active", b.dataset.noteColor === _noteColor));
       document.getElementById("notesMode").textContent = _notesTool.toUpperCase();
       const notesCanvas = document.getElementById("notesCanvas"); notesCanvas.className = "tool-" + _notesTool + (_notesTool === "pan" ? " pan-mode" : ""); document.getElementById("noteZoomLabel").textContent = Math.round(_notesZoom * 100) + "%";
       requestAnimationFrame(resizeNotesCanvas);
