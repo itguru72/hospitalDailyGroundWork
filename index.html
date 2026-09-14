@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" href="data:," />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Hospital Bed Tracker</title>
   <style>
@@ -5175,6 +5176,8 @@
     }
     function notePoint(e) { const r = document.getElementById("notesCanvas").getBoundingClientRect(); return { x: (e.clientX - r.left) / _notesZoom - _notesPan.x, y: (e.clientY - r.top) / _notesZoom - _notesPan.y }; }
     function currentNoteData() { const tab = activeNoteTab(); return tab && (notesGroup(_notesPatientId)[tab.id] || (notesGroup(_notesPatientId)[tab.id] = { strokes: [] })); }
+    function noteColorKey() { return _notesTool === "highlighter" ? "highlighterColor" : _notesTool === "text" ? "textColor" : "pencilColor"; }
+    function setNoteTool(tool) { _notesTool = tool; if (tool === "pencil" || tool === "highlighter" || tool === "text") _noteColor = (state.notePreferences && state.notePreferences[noteColorKey()]) || _noteColor; renderNotesWorkspace(); }
     function rememberNoteAction(note) { note.undoStack = note.undoStack || []; note.redoStack = []; note.undoStack.push(JSON.stringify(note.strokes || [])); if (note.undoStack.length > 5) note.undoStack.shift(); }
     function undoNote() { const note = currentNoteData(); if (!note || !note.undoStack || !note.undoStack.length) return; note.redoStack = note.redoStack || []; note.redoStack.push(JSON.stringify(note.strokes || [])); note.strokes = JSON.parse(note.undoStack.pop()); save(); drawNotesCanvas(); }
     function redoNote() { const note = currentNoteData(); if (!note || !note.redoStack || !note.redoStack.length) return; note.undoStack = note.undoStack || []; note.undoStack.push(JSON.stringify(note.strokes || [])); note.strokes = JSON.parse(note.redoStack.pop()); save(); drawNotesCanvas(); }
