@@ -5866,6 +5866,28 @@
     };
     document.getElementById("closeDriveRestoreModal").onclick = () => closeModal("driveRestoreModal");
     document.getElementById("cancelDriveRestore").onclick = () => closeModal("driveRestoreModal");
+    function autoBackupIfDue() {
+      // Silent only: never interrupt someone with an account/consent prompt during normal app use.
+      if (!window.google || !google.accounts || !google.accounts.oauth2) return;
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_OAUTH_CLIENT_ID,
+        scope: GOOGLE_DRIVE_SCOPE,
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error || !tokenResponse.access_token) return;
+          try {
+            const backups = await listDriveBackups(tokenResponse.access_token);
+            const latest = backups[0] && new Date(backups[0].createdTime || backups[0].modifiedTime).getTime();
+            if (latest && Date.now() - latest < 12 * 60 * 60 * 1000) return;
+            const result = await uploadDriveBackup(tokenResponse.access_token);
+            toast("Automatic Drive backup saved · " + formatFileSize(result.byteLength));
+          } catch (error) {
+            // Background backup must not interrupt clinical use; manual backup remains available.
+            console.warn("Automatic Google Drive backup skipped", error);
+          }
+        }
+      });
+      tokenClient.requestAccessToken({ prompt: "none" });
+    }
     function doFullRestore(file) {
       const reader = new FileReader();
       reader.onload = () => {
@@ -5951,6 +5973,8 @@
     setAppPage(restoredPage, false);
     if (restoredPage === "patient" && state.notesOpen && state.lastPatientId && getPatient(state.lastPatientId)) openPatientNotes(state.lastPatientId);
     startReminderWatcher();
+    setTimeout(autoBackupIfDue, 5000);
+    setInterval(autoBackupIfDue, 30 * 60 * 1000);
   </script>
 
   </body>
