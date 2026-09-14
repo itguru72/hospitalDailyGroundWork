@@ -5730,14 +5730,31 @@
       });
       return folder.id;
     }
+    async function countDriveBackups(token, folderId) {
+      let count = 0, pageToken = "";
+      do {
+        const page = await driveApi("files?q=" + encodeURIComponent("'" + folderId + "' in parents and trashed = false")
+          + "&pageSize=1000&fields=nextPageToken,files(id)" + (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : ""), token);
+        count += (page.files || []).length;
+        pageToken = page.nextPageToken || "";
+      } while (pageToken);
+      return count;
+    }
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    }
     async function uploadDriveBackup(token) {
       const folderId = await getDriveBackupFolder(token);
       const stamp = new Date().toISOString().replace(/[.:]/g, "-");
       const metadata = { name: "bed-tracker-backup-" + stamp + ".json", mimeType: "application/json", parents: [folderId] };
+      const backupJson = JSON.stringify(buildFullBackupPayload());
+      const byteLength = new Blob([backupJson]).size;
       const boundary = "hospital-bed-tracker-" + Date.now();
       const body = "--" + boundary + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"
         + JSON.stringify(metadata) + "\r\n--" + boundary + "\r\nContent-Type: application/json\r\n\r\n"
-        + JSON.stringify(buildFullBackupPayload()) + "\r\n--" + boundary + "--";
+        + backupJson + "\r\n--" + boundary + "--";
       const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink", {
         method: "POST",
         headers: { Authorization: "Bearer " + token, "Content-Type": "multipart/related; boundary=" + boundary },
@@ -5747,7 +5764,8 @@
         const details = await response.json().catch(() => ({}));
         throw new Error((details.error && details.error.message) || "Google Drive upload failed");
       }
-      return response.json();
+      const file = await response.json();
+      return { file, byteLength, backupCount: await countDriveBackups(token, folderId) };
     }
     function backupToGoogleDrive() {
       if (!window.google || !google.accounts || !google.accounts.oauth2) {
@@ -5761,9 +5779,9 @@
         callback: async (tokenResponse) => {
           if (tokenResponse.error) { toast("Google sign-in was cancelled", "error"); return; }
           try {
-            const file = await uploadDriveBackup(tokenResponse.access_token);
-            toast("Backup saved to Google Drive");
-            if (file.webViewLink) window.open(file.webViewLink, "_blank", "noopener");
+            const result = await uploadDriveBackup(tokenResponse.access_token);
+            toast("Backed up " + formatFileSize(result.byteLength) + " · " + result.backupCount + " version" + (result.backupCount === 1 ? "" : "s") + " available");
+            if (result.file.webViewLink) window.open(result.file.webViewLink, "_blank", "noopener");
           } catch (error) {
             console.error(error);
             toast("Google Drive backup failed: " + (error.message || "unknown error"), "error");
