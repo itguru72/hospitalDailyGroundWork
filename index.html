@@ -5105,7 +5105,7 @@
       }).join("");
     }
 
-    let _notesPatientId = null, _notesTool = "pencil", _noteColor = "#1e293b", _noteSize = 4, _notesZoom = 1, _notesPan = { x: 0, y: 0 }, _notesDrawing = null, _notesPanning = null;
+    let _notesPatientId = null, _notesTool = "pencil", _noteColor = "#1e293b", _noteSize = 4, _notesZoom = 1, _notesPan = { x: 0, y: 0 }, _notesDrawing = null, _notesPanning = null, _notesTouches = new Map(), _notesPinch = null;
     function notesGroup(patientId) {
       state.patientNotes = state.patientNotes || {};
       if (!state.patientNotes[patientId] || Array.isArray(state.patientNotes[patientId].tabs)) state.patientNotes[patientId] = {};
@@ -5178,9 +5178,20 @@
     }
     function initNotesCanvas() {
       const canvas = document.getElementById("notesCanvas");
-      canvas.addEventListener("pointerdown", e => { if (!_notesPatientId) return; canvas.setPointerCapture(e.pointerId); if (_notesTool === "pan") { _notesPanning = { x: e.clientX, y: e.clientY, panX: _notesPan.x, panY: _notesPan.y }; return; } const note = currentNoteData(); if (!note) return; const point = notePoint(e); rememberNoteAction(note); if (_notesTool === "text") { const text = prompt("Enter text:"); if (text) note.strokes.push({ type: "text", text, x: point.x, y: point.y, color: _noteColor, size: _noteSize }); save(); drawNotesCanvas(); return; } if (_notesTool === "eraser") { _notesDrawing = { eraser: true }; eraseAt(point); drawNotesCanvas(); return; } _notesDrawing = { color: _noteColor, size: _noteSize * (_notesTool === "highlighter" ? 3 : 1), tool: _notesTool, points: [point] }; note.strokes.push(_notesDrawing); drawNotesCanvas(); });
-      canvas.addEventListener("pointermove", e => { if (_notesPanning) { _notesPan.x = _notesPanning.panX + (e.clientX - _notesPanning.x) / _notesZoom; _notesPan.y = _notesPanning.panY + (e.clientY - _notesPanning.y) / _notesZoom; drawNotesCanvas(); return; } if (_notesDrawing) { if (_notesDrawing.eraser) eraseAt(notePoint(e)); else _notesDrawing.points.push(notePoint(e)); drawNotesCanvas(); } });
-      const finish = () => { if (_notesDrawing || _notesPanning) save(); _notesDrawing = null; _notesPanning = null; }; canvas.addEventListener("pointerup", finish); canvas.addEventListener("pointercancel", finish);
+      canvas.addEventListener("pointerdown", e => {
+        if (!_notesPatientId) return; canvas.setPointerCapture(e.pointerId);
+        if (e.pointerType === "touch") { _notesTouches.set(e.pointerId, { x: e.clientX, y: e.clientY }); const pts = [..._notesTouches.values()]; if (pts.length === 1) _notesPanning = { x: e.clientX, y: e.clientY, panX: _notesPan.x, panY: _notesPan.y }; if (pts.length === 2) _notesPinch = { distance: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), zoom: _notesZoom }; return; }
+        if (_notesTool === "pan") { _notesPanning = { x: e.clientX, y: e.clientY, panX: _notesPan.x, panY: _notesPan.y }; return; }
+        const note = currentNoteData(); if (!note) return; const point = notePoint(e); rememberNoteAction(note);
+        if (_notesTool === "text") { const text = prompt("Enter text:"); if (text) note.strokes.push({ type: "text", text, x: point.x, y: point.y, color: _noteColor, size: _noteSize }); save(); drawNotesCanvas(); return; }
+        if (_notesTool === "eraser") { _notesDrawing = { eraser: true }; eraseAt(point); drawNotesCanvas(); return; }
+        _notesDrawing = { color: _noteColor, size: _noteSize * (_notesTool === "highlighter" ? 3 : 1), tool: _notesTool, points: [point] }; note.strokes.push(_notesDrawing); drawNotesCanvas();
+      });
+      canvas.addEventListener("pointermove", e => {
+        if (e.pointerType === "touch" && _notesTouches.has(e.pointerId)) { _notesTouches.set(e.pointerId, { x: e.clientX, y: e.clientY }); const pts = [..._notesTouches.values()]; if (pts.length >= 2 && _notesPinch) { const distance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y); _notesZoom = Math.max(0.25, Math.min(4, _notesPinch.zoom * distance / Math.max(1, _notesPinch.distance))); renderNotesWorkspace(); } else if (_notesPanning) { _notesPan.x = _notesPanning.panX + (e.clientX - _notesPanning.x) / _notesZoom; _notesPan.y = _notesPanning.panY + (e.clientY - _notesPanning.y) / _notesZoom; drawNotesCanvas(); } return; }
+        if (_notesPanning) { _notesPan.x = _notesPanning.panX + (e.clientX - _notesPanning.x) / _notesZoom; _notesPan.y = _notesPanning.panY + (e.clientY - _notesPanning.y) / _notesZoom; drawNotesCanvas(); return; } if (_notesDrawing) { if (_notesDrawing.eraser) eraseAt(notePoint(e)); else _notesDrawing.points.push(notePoint(e)); drawNotesCanvas(); }
+      });
+      const finish = e => { if (_notesDrawing || _notesPanning) save(); if (e && e.pointerType === "touch") { _notesTouches.delete(e.pointerId); _notesPinch = null; } _notesDrawing = null; _notesPanning = null; }; canvas.addEventListener("pointerup", finish); canvas.addEventListener("pointercancel", finish);
     }
 
     function closeMenus() {
