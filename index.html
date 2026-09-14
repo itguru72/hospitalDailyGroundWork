@@ -795,6 +795,11 @@
       width: 100%;
       position: relative;
     }
+    @media (min-width: 769px) {
+      .header-inner { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto; }
+      .app-nav { position: static; transform: none; justify-self: center; }
+      .top-bar-icons { margin-left: 0; }
+    }
     #legendPanel {
       display: none;
       padding: 8px 16px;
@@ -4428,14 +4433,14 @@
     function runGlobalSearch() {
       const q = (document.getElementById("globalSearch").value || "").trim().toLowerCase();
       const box = document.getElementById("globalSearchResults");
-      if (!q) { box.classList.remove("open"); box.innerHTML = ""; return; }
-      const hits = state.patients.filter(p =>
+      if (!q && state.lastPage !== "patient") { box.classList.remove("open"); box.innerHTML = ""; return; }
+      const hits = state.patients.filter(p => !q ||
         p.name.toLowerCase().includes(q) ||
         (p.illness || "").toLowerCase().includes(q) ||
         (p.doctor || "").toLowerCase().includes(q) ||
         (getBedByPatient(p.id) && getBedByPatient(p.id).id.toLowerCase().includes(q))
       ).slice(0, 12);
-      const dhits = (state.discharged || []).filter(p => (p.name || "").toLowerCase().includes(q)).slice(0, 5);
+      const dhits = q ? (state.discharged || []).filter(p => (p.name || "").toLowerCase().includes(q)).slice(0, 5) : [];
       if (!hits.length && !dhits.length) {
         box.innerHTML = '<div class="gs-item" style="color:var(--muted)">No matches</div>';
         box.classList.add("open");
