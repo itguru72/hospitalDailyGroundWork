@@ -4709,7 +4709,14 @@
       a.download = "handover-unit" + u + "-" + today() + ".html";
       a.click();
       URL.revokeObjectURL(url);
-      toast("Hand over report downloaded — patient list + detailed reports (summary, work notes, bed history)");
+      plist.forEach((p, i) => {
+        const bed = getBedByPatient(p.id);
+        const notes = (p.workNotes || []).slice().reverse().map(n => "<li><strong>" + esc((n.at || "").slice(0, 19).replace("T", " ")) + "</strong> — " + esc(n.text || "") + "</li>").join("") || "<li>None</li>";
+        const noteImages = (state.noteTabs || []).map(tab => ({ name: tab.name, image: noteTabImage(p.id, tab) })).filter(n => n.image).map(n => "<h3>" + esc(n.name) + "</h3><img src='" + n.image + "' style='max-width:100%;border:1px solid #bbb;'>").join("");
+        const patientDoc = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Handover — " + esc(p.name) + "</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#111;line-height:1.45}h1{border-bottom:2px solid #2563eb;padding-bottom:8px}h2{margin-top:24px;color:#1d4ed8}table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:7px;text-align:left;vertical-align:top}th{width:180px;background:#f1f5f9}li{margin:7px 0}</style></head><body><h1>Patient Hand Over — " + esc(p.name) + "</h1><p>Generated " + esc(when) + "</p><table><tr><th>Name</th><td>" + esc(p.name) + "</td></tr><tr><th>Gender / Age</th><td>" + esc(p.gender || "—") + " / " + esc(p.age || "—") + "</td></tr><tr><th>Unit / Bed</th><td>Unit " + esc(p.unit) + " · " + esc(bed ? bed.id + " · " + bed.ward : "Unassigned") + "</td></tr><tr><th>Doctor</th><td>" + esc(p.doctor || "—") + "</td></tr><tr><th>Illness</th><td>" + esc(p.illness || "—") + "</td></tr><tr><th>Summary</th><td style='white-space:pre-wrap'>" + esc(p.summary || "—") + "</td></tr></table><h2>Work notes</h2><ul>" + notes + "</ul>" + (noteImages ? "<h2>Handwritten notes</h2>" + noteImages : "") + "</body></html>";
+        setTimeout(() => downloadText(patientDoc, "handover-" + p.id + "-" + (p.name || "patient").replace(/[^a-z0-9]+/gi, "-") + "-" + today() + ".html", "text/html"), 80 * (i + 1));
+      });
+      toast("Downloaded unit packet plus " + plist.length + " patient handover file(s) — allow multiple downloads if asked");
     }
 
     function openHandoverReport(section) {
