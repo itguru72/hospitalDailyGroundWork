@@ -5973,7 +5973,7 @@
     setAppPage(restoredPage, false);
     if (restoredPage === "patient" && state.notesOpen && state.lastPatientId && getPatient(state.lastPatientId)) openPatientNotes(state.lastPatientId);
     startReminderWatcher();
-    setTimeout(autoBackupIfDue, 5000);
+    setTimeout(autoBackupIfDue, 60 * 1000);
     setInterval(autoBackupIfDue, 30 * 60 * 1000);
   </script>
 
