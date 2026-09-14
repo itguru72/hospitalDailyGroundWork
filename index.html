@@ -5195,7 +5195,7 @@
         if (e.pointerType === "touch") { _notesTouches.set(e.pointerId, { x: e.clientX, y: e.clientY }); const pts = [..._notesTouches.values()]; if (pts.length === 1) _notesPanning = { x: e.clientX, y: e.clientY, panX: _notesPan.x, panY: _notesPan.y }; if (pts.length === 2) _notesPinch = { distance: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), zoom: _notesZoom }; return; }
         if (_notesTool === "pan") { _notesPanning = { x: e.clientX, y: e.clientY, panX: _notesPan.x, panY: _notesPan.y }; return; }
         const note = currentNoteData(); if (!note) return; const point = notePoint(e); rememberNoteAction(note);
-        if (_notesTool === "text") { _noteTextPoint = point; document.getElementById("noteTextInput").value = ""; _noteTextStyle = { bold:false, underline:false, italic:false }; document.querySelectorAll("[data-note-text-style]").forEach(b => b.classList.remove("active")); openModal("noteTextModal"); return; }
+        if (_notesTool === "text") { _noteTextPoint = point; const textInput = document.getElementById("noteTextInput"); textInput.value = ""; _noteTextStyle = { bold:false, underline:false, italic:false }; document.querySelectorAll("[data-note-text-style]").forEach(b => b.classList.remove("active")); openModal("noteTextModal"); textInput.focus(); return; }
         if (_notesTool === "eraser") { _notesDrawing = { eraser: true }; eraseAt(point); drawNotesCanvas(); return; }
         _notesDrawing = { color: _noteColor, size: _noteSize * (_notesTool === "highlighter" ? 3 : 1), tool: _notesTool, points: [point] }; note.strokes.push(_notesDrawing); drawNotesCanvas();
       });
