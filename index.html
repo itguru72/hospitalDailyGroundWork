@@ -1510,6 +1510,7 @@
         <div class="notes-canvas-wrap" id="notesCanvasWrap"><canvas id="notesCanvas"></canvas></div>
       </div>
   </div>
+  <div class="modal-overlay" id="noteTextModal"><div class="modal" style="max-width:420px;"><div class="modal-header"><h2>Add text</h2><button type="button" id="closeNoteTextModal">✕</button></div><div class="modal-body"><div class="form-group"><label>Text</label><textarea id="noteTextInput" placeholder="Enter text…" style="min-height:90px;"></textarea></div><div class="notes-toolbar"><label>Size <select id="noteTextSize"><option value="3">Small</option><option value="4" selected>Medium</option><option value="6">Large</option></select></label><button type="button" data-note-text-style="bold"><strong>B</strong></button><button type="button" data-note-text-style="underline"><u>U</u></button><button type="button" data-note-text-style="italic"><em>I</em></button></div></div><div class="modal-footer"><button type="button" id="cancelNoteText">Cancel</button><button type="button" class="primary" id="saveNoteText">Add text</button></div></div></div>
   <!-- Bed -->
   <div class="modal-overlay" id="bedModal">
     <div class="modal">
@@ -2112,7 +2113,7 @@
       schemaVersion: 2,
       activeUnit: "1", beds: [], patients: [], loans: [], doctors: [],
       wardConfig: {}, wards: null, theme: "fresh", discharged: [], reminders: [], units: null,
-      auditLog: [], lastPage: "regular", lastPatientId: null, patientNotes: {}, noteTabs: [], activeNoteTabId: null, patientActiveNoteTabs: {}, notesOpen: false,
+      auditLog: [], lastPage: "regular", lastPatientId: null, patientNotes: {}, noteTabs: [], activeNoteTabId: null, patientActiveNoteTabs: {}, notesOpen: false, notePreferences: { pencilColor: "#1e293b", highlighterColor: "#2563eb", textColor: "#1e293b" },
       nextPatientId: 1, nextLoanId: 1, nextDoctorId: 1, nextReminderId: 1,
       nextHistoryId: 1, nextWorkNoteId: 1, nextAuditId: 1
     };
@@ -2144,6 +2145,7 @@
       if (!state.patientNotes) state.patientNotes = {};
       if (!state.noteTabs) state.noteTabs = [];
       if (!state.patientActiveNoteTabs) state.patientActiveNoteTabs = {};
+      if (!state.notePreferences) state.notePreferences = { pencilColor: "#1e293b", highlighterColor: "#2563eb", textColor: "#1e293b" };
       if (!state.notesOpen) state.notesOpen = false;
       if (state.lastPage !== "patient") state.lastPage = "regular";
       if (!state.units || !state.units.length) {
@@ -5106,7 +5108,7 @@
       }).join("");
     }
 
-    let _notesPatientId = null, _notesTool = "pencil", _noteColor = "#1e293b", _noteSize = 4, _notesZoom = 1, _notesPan = { x: 0, y: 0 }, _notesDrawing = null, _notesPanning = null, _notesTouches = new Map(), _notesPinch = null;
+    let _notesPatientId = null, _notesTool = "pencil", _noteColor = "#1e293b", _noteSize = 4, _notesZoom = 1, _notesPan = { x: 0, y: 0 }, _notesDrawing = null, _notesPanning = null, _notesTouches = new Map(), _notesPinch = null, _noteTextPoint = null, _noteTextStyle = { bold:false, underline:false, italic:false };
     function notesGroup(patientId) {
       state.patientNotes = state.patientNotes || {};
       if (!state.patientNotes[patientId] || Array.isArray(state.patientNotes[patientId].tabs)) state.patientNotes[patientId] = {};
@@ -5144,7 +5146,7 @@
       if (!note) return;
       ctx.setTransform(dpr * _notesZoom, 0, 0, dpr * _notesZoom, dpr * _notesPan.x, dpr * _notesPan.y);
       (note.strokes || []).forEach(stroke => {
-        if (stroke.type === "text") { ctx.globalAlpha = 1; ctx.fillStyle = stroke.color; ctx.font = (stroke.size * 5) + "px sans-serif"; ctx.fillText(stroke.text, stroke.x, stroke.y); return; }
+        if (stroke.type === "text") { ctx.globalAlpha = 1; ctx.fillStyle = stroke.color; ctx.font = (stroke.italic ? "italic " : "") + (stroke.bold ? "bold " : "") + (stroke.size * 5) + "px sans-serif"; ctx.fillText(stroke.text, stroke.x, stroke.y); if (stroke.underline) { const w = ctx.measureText(stroke.text).width; ctx.fillRect(stroke.x, stroke.y + 3, w, Math.max(1, stroke.size / 2)); } return; }
         if (!stroke.points || !stroke.points.length) return;
         ctx.beginPath(); ctx.strokeStyle = stroke.color; ctx.globalAlpha = stroke.tool === "highlighter" ? 0.28 : 1; ctx.lineWidth = stroke.size; ctx.lineCap = "round"; ctx.lineJoin = "round";
         stroke.points.forEach((pt, i) => { if (i) ctx.lineTo(pt.x, pt.y); else ctx.moveTo(pt.x, pt.y); }); ctx.stroke();
@@ -5184,7 +5186,7 @@
         if (e.pointerType === "touch") { _notesTouches.set(e.pointerId, { x: e.clientX, y: e.clientY }); const pts = [..._notesTouches.values()]; if (pts.length === 1) _notesPanning = { x: e.clientX, y: e.clientY, panX: _notesPan.x, panY: _notesPan.y }; if (pts.length === 2) _notesPinch = { distance: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), zoom: _notesZoom }; return; }
         if (_notesTool === "pan") { _notesPanning = { x: e.clientX, y: e.clientY, panX: _notesPan.x, panY: _notesPan.y }; return; }
         const note = currentNoteData(); if (!note) return; const point = notePoint(e); rememberNoteAction(note);
-        if (_notesTool === "text") { const text = prompt("Enter text:"); if (text) note.strokes.push({ type: "text", text, x: point.x, y: point.y, color: _noteColor, size: _noteSize }); save(); drawNotesCanvas(); return; }
+        if (_notesTool === "text") { _noteTextPoint = point; document.getElementById("noteTextInput").value = ""; _noteTextStyle = { bold:false, underline:false, italic:false }; document.querySelectorAll("[data-note-text-style]").forEach(b => b.classList.remove("active")); openModal("noteTextModal"); return; }
         if (_notesTool === "eraser") { _notesDrawing = { eraser: true }; eraseAt(point); drawNotesCanvas(); return; }
         _notesDrawing = { color: _noteColor, size: _noteSize * (_notesTool === "highlighter" ? 3 : 1), tool: _notesTool, points: [point] }; note.strokes.push(_notesDrawing); drawNotesCanvas();
       });
@@ -5718,14 +5720,18 @@
     }
 
     document.getElementById("closeNotesModal").onclick = () => { document.getElementById("notesWorkspace").classList.remove("open"); state.notesOpen = false; save(); };
-    document.getElementById("noteToolPencil").onclick = () => { _notesTool = "pencil"; renderNotesWorkspace(); };
-    document.getElementById("noteToolHighlighter").onclick = () => { _notesTool = "highlighter"; renderNotesWorkspace(); };
+    document.getElementById("closeNoteTextModal").onclick = () => closeModal("noteTextModal");
+    document.getElementById("cancelNoteText").onclick = () => closeModal("noteTextModal");
+    document.querySelectorAll("[data-note-text-style]").forEach(btn => btn.onclick = () => { const key = btn.dataset.noteTextStyle; _noteTextStyle[key] = !_noteTextStyle[key]; btn.classList.toggle("active", _noteTextStyle[key]); });
+    document.getElementById("saveNoteText").onclick = () => { const text = document.getElementById("noteTextInput").value.trim(), note = currentNoteData(); if (!text || !note || !_noteTextPoint) return; note.strokes.push({ type:"text", text, x:_noteTextPoint.x, y:_noteTextPoint.y, color:_noteColor, size:Number(document.getElementById("noteTextSize").value), ..._noteTextStyle }); save(); closeModal("noteTextModal"); drawNotesCanvas(); };
+    document.getElementById("noteToolPencil").onclick = () => setNoteTool("pencil");
+    document.getElementById("noteToolHighlighter").onclick = () => setNoteTool("highlighter");
     document.getElementById("noteToolEraser").onclick = () => { _notesTool = "eraser"; renderNotesWorkspace(); };
-    document.getElementById("noteToolText").onclick = () => { _notesTool = "text"; renderNotesWorkspace(); };
+    document.getElementById("noteToolText").onclick = () => setNoteTool("text");
     document.getElementById("noteToolPan").onclick = () => { _notesTool = "pan"; renderNotesWorkspace(); };
     document.getElementById("noteUndo").onclick = undoNote;
     document.getElementById("noteRedo").onclick = redoNote;
-    document.querySelectorAll("[data-note-color]").forEach(btn => btn.onclick = () => { _noteColor = btn.dataset.noteColor; document.querySelectorAll("[data-note-color]").forEach(b => b.classList.toggle("active", b === btn)); });
+    document.querySelectorAll("[data-note-color]").forEach(btn => btn.onclick = () => { _noteColor = btn.dataset.noteColor; if (_notesTool === "pencil" || _notesTool === "highlighter" || _notesTool === "text") { state.notePreferences[noteColorKey()] = _noteColor; save(); } document.querySelectorAll("[data-note-color]").forEach(b => b.classList.toggle("active", b === btn)); });
     document.querySelectorAll("[data-note-size]").forEach(btn => btn.onclick = () => { _noteSize = Number(btn.dataset.noteSize); document.querySelectorAll("[data-note-size]").forEach(b => b.classList.toggle("active", b === btn)); });
     document.getElementById("noteZoomIn").onclick = () => { _notesZoom = Math.min(4, _notesZoom * 1.25); renderNotesWorkspace(); };
     document.getElementById("noteZoomOut").onclick = () => { _notesZoom = Math.max(0.25, _notesZoom / 1.25); renderNotesWorkspace(); };
