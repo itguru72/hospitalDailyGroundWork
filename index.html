@@ -4519,6 +4519,18 @@
           return "<tr><td>" + esc((h.at || "").slice(0, 19).replace("T", " ")) + "</td><td>" + esc(h.action || "") + "</td><td>" + esc(h.bedId || "") + "</td><td>" + esc(h.ward || "") + "</td></tr>";
         }).join("");
       }
+      function noteTabImage(patientId, tab) {
+        const note = ((state.patientNotes || {})[patientId] || {})[tab.id];
+        if (!note || !(note.strokes || []).length) return "";
+        const canvas = document.createElement("canvas"); canvas.width = 1200; canvas.height = 700;
+        const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        (note.strokes || []).forEach(s => {
+          ctx.globalAlpha = s.tool === "highlighter" ? 0.28 : 1; ctx.fillStyle = s.color || "#111"; ctx.strokeStyle = s.color || "#111";
+          if (s.type === "text") { ctx.font = (s.italic ? "italic " : "") + (s.bold ? "bold " : "") + ((s.size || 4) * 5) + "px sans-serif"; ctx.fillText(s.text || "", s.x || 0, s.y || 0); if (s.underline) { const w = ctx.measureText(s.text || "").width; ctx.fillRect(s.x || 0, (s.y || 0) + 3, w, 2); } return; }
+          if (!(s.points || []).length) return; ctx.beginPath(); ctx.lineWidth = s.size || 3; ctx.lineCap = "round"; ctx.lineJoin = "round"; s.points.forEach((pt, i) => i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y)); ctx.stroke();
+        });
+        ctx.globalAlpha = 1; return canvas.toDataURL("image/png");
+      }
 
       // 1. Wards
       body += "<h2>1. Wards &amp; Beds (Unit " + u + ")</h2>";
@@ -4600,6 +4612,13 @@
         body += "<tr><th>Work notes count</th><td>" + noteCount + "</td></tr>";
         body += "<tr><th>Bed history events</th><td>" + histCount + "</td></tr>";
         body += "</table>";
+
+        const noteTabs = state.noteTabs || [];
+        const noteImages = noteTabs.map(tab => ({ name: tab.name, image: noteTabImage(p.id, tab) })).filter(x => x.image);
+        if (noteImages.length) {
+          body += "<h4 style='margin:14px 0 6px;font-size:0.95rem;color:#0c4a6e;'>Handwritten notes</h4>";
+          noteImages.forEach(n => { body += "<div style='margin:8px 0 14px;page-break-inside:avoid;'><strong>" + esc(n.name) + "</strong><br><img src='" + n.image + "' alt='" + esc(n.name) + "' style='display:block;max-width:100%;border:1px solid #bbb;background:#fff;margin-top:5px;'></div>"; });
+        }
 
         // Work notes date/time wise
         const wnotes = (p.workNotes || []).slice().reverse();
