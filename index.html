@@ -5770,7 +5770,9 @@
           }
         }
       });
-      tokenClient.requestAccessToken({ prompt: "consent" });
+      // Do not force the consent screen on every backup. Google reuses an existing grant
+      // and only asks again if the person changes account or revokes access.
+      tokenClient.requestAccessToken({ prompt: "" });
     }
     function doFullRestore(file) {
       const reader = new FileReader();
