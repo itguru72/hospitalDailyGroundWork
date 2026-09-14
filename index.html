@@ -5755,6 +5755,13 @@
       const data = await driveApi("files?q=" + query + "&orderBy=createdTime desc&pageSize=1000&fields=files(id,name,createdTime,modifiedTime,size)", token);
       return data.files || [];
     }
+    async function removeExpiredDriveBackups(token, folderId) {
+      const cutoff = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+      const query = "'" + folderId + "' in parents and trashed = false and mimeType = 'application/json' and createdTime < '" + cutoff + "'";
+      const expired = await driveApi("files?q=" + encodeURIComponent(query) + "&pageSize=1000&fields=files(id)", token);
+      await Promise.all((expired.files || []).map(file => driveApi("files/" + encodeURIComponent(file.id), token, { method: "DELETE" })));
+      return (expired.files || []).length;
+    }
     function formatFileSize(bytes) {
       if (bytes < 1024) return bytes + " B";
       if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0) + " KB";
@@ -5783,7 +5790,8 @@
         throw new Error((details.error && details.error.message) || "Google Drive upload failed");
       }
       const file = await response.json();
-      return { file, byteLength, backupCount: await countDriveBackups(token, folderId) };
+      const removedCount = await removeExpiredDriveBackups(token, folderId);
+      return { file, byteLength, backupCount: await countDriveBackups(token, folderId), removedCount };
     }
     function backupToGoogleDrive() {
       if (!window.google || !google.accounts || !google.accounts.oauth2) {
@@ -5798,7 +5806,8 @@
           if (tokenResponse.error) { toast("Google sign-in was cancelled", "error"); return; }
           try {
             const result = await uploadDriveBackup(tokenResponse.access_token);
-            toast("Backed up " + formatFileSize(result.byteLength) + " · " + result.backupCount + " version" + (result.backupCount === 1 ? "" : "s") + " available");
+            const cleaned = result.removedCount ? " · removed " + result.removedCount + " old" : "";
+            toast("Backed up " + formatFileSize(result.byteLength) + " · " + result.backupCount + " version" + (result.backupCount === 1 ? "" : "s") + " available" + cleaned);
             if (result.file.webViewLink) window.open(result.file.webViewLink, "_blank", "noopener");
           } catch (error) {
             console.error(error);
