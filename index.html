@@ -65,6 +65,22 @@
     .app-nav { display: flex; gap: 5px; position: absolute; left: 50%; transform: translateX(-50%); }
     .app-nav button { padding: 5px 10px; }
     .app-nav button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .app-nav .nav-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .app-nav .nav-icon svg {
+      width: 1.15em;
+      height: 1.15em;
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.25;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     .menu-patient-only { display: none !important; }
     #mainMenu[data-page="patient"] .menu-regular-only { display: none !important; }
     #mainMenu[data-page="patient"] .menu-patient-only { display: inline-flex !important; }
@@ -1459,8 +1475,8 @@
     <div class="header-inner">
       <h1><span class="brand-icon" aria-hidden="true">🏥</span><span class="brand-text">Bed Tracker</span></h1>
       <nav class="app-nav" aria-label="Main navigation">
-        <button type="button" id="btnRegularPage" class="active" aria-label="Regular beds"><span class="nav-icon" aria-hidden="true">🛏️</span><span class="nav-label">Regular</span></button>
-        <button type="button" id="btnPatientPage" aria-label="Patient page"><span class="nav-icon" aria-hidden="true">👤</span><span class="nav-label">Patient</span></button>
+        <button type="button" id="btnRegularPage" class="active" aria-label="Regular beds"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M5 7v18" /><path d="M5 17h22" /><path d="M9 17v-6h6a4 4 0 0 1 4 4v2" /><path d="M9 11h-1.5a2.5 2.5 0 0 0 0 5H9" /><path d="M27 12v13" /><path d="M4 25h25" /><path d="M8 25v3" /><path d="M25 25v3" /></svg></span><span class="nav-label">Regular</span></button>
+        <button type="button" id="btnPatientPage" aria-label="Patient page"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 32 32" focusable="false"><path d="M13 22h5.5c2.2 0 4.3-.7 6-2l3.5-2.6a2 2 0 0 0-2.4-3.2l-3.2 2.2" /><path d="M5 20.5l4.2-3.2a8 8 0 0 1 6-1.4l5.1 1a1.9 1.9 0 0 1-.7 3.7l-5.2-.9" /><path d="M3.5 18.5l4 9" /><path d="M17.5 7.5a4 4 0 1 0 8 0 4 4 0 0 0-8 0" /><path d="M15.5 16a6.2 6.2 0 0 1 12 0" /><path d="M27 6v5" /><path d="M24.5 8.5h5" /></svg></span><span class="nav-label">Patient</span></button>
       </nav>
       <div class="top-bar-icons">
         <input type="search" id="globalSearch" placeholder="Search patient…" autocomplete="off" />
