@@ -97,6 +97,7 @@
     .notes-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 8px 0; border-bottom: 1px solid var(--border); }
     .notes-tab { white-space: nowrap; border-radius: 7px 7px 0 0; }
     .notes-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .notes-tab.has-description::after { content: "•"; margin-left: 5px; font-weight: 900; }
     .notes-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 9px 0; }
     .notes-toolbar button.active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 0 2px rgba(59,158,255,0.25); }
     #noteToolText { border-color: var(--accent); color: var(--accent); font-weight: 700; }
@@ -1697,6 +1698,7 @@
       </div>
   </div>
   <div class="modal-overlay" id="noteTextModal"><div class="modal" style="max-width:420px;"><div class="modal-header"><h2>Add text</h2><button type="button" id="closeNoteTextModal">✕</button></div><div class="modal-body"><div class="form-group"><label>Text</label><textarea id="noteTextInput" placeholder="Enter text…" style="min-height:90px;"></textarea></div><div class="notes-toolbar"><label>Size <select id="noteTextSize"><option value="3">Small</option><option value="4" selected>Medium</option><option value="6">Large</option></select></label><button type="button" data-note-text-style="bold"><strong>B</strong></button><button type="button" data-note-text-style="underline"><u>U</u></button><button type="button" data-note-text-style="italic"><em>I</em></button></div></div><div class="modal-footer"><button type="button" id="cancelNoteText">Cancel</button><button type="button" class="primary" id="saveNoteText">Add text</button></div></div></div>
+  <div class="modal-overlay" id="noteTabDetailsModal"><div class="modal" style="max-width:440px;"><div class="modal-header"><h2>Note tab details</h2><button type="button" id="closeNoteTabDetailsModal">✕</button></div><div class="modal-body"><input type="hidden" id="noteTabDetailsId" /><div class="form-group"><label>Tab name</label><input type="text" id="noteTabNameInput" maxlength="40" placeholder="Note 1" /></div><div class="form-group"><label>Notes</label><textarea id="noteTabDescriptionInput" placeholder="Description about this note tab…" style="min-height:110px;"></textarea></div></div><div class="modal-footer"><button type="button" id="cancelNoteTabDetails">Cancel</button><button type="button" class="primary" id="saveNoteTabDetails">Save</button></div></div></div>
   <!-- Bed -->
   <div class="modal-overlay" id="bedModal">
     <div class="modal">
@@ -5381,15 +5383,42 @@
       if (!_notesPatientId) return;
       const name = prompt("Name for new note tab:", "Note " + ((state.noteTabs || []).length + 1));
       if (!name || !name.trim()) return;
-      const tab = { id: "N" + Date.now() + Math.random().toString(16).slice(2), name: name.trim(), createdAt: nowTs() };
+      const tab = { id: "N" + Date.now() + Math.random().toString(16).slice(2), name: name.trim(), description: "", createdAt: nowTs() };
       state.noteTabs.push(tab); state.activeNoteTabId = tab.id; state.patientActiveNoteTabs[_notesPatientId] = tab.id; notesGroup(_notesPatientId)[tab.id] = { strokes: [] }; save(); renderNotesWorkspace();
+    }
+    function openNoteTabDetails(tabId) {
+      const tab = (state.noteTabs || []).find(t => t.id === tabId);
+      if (!tab) return;
+      state.activeNoteTabId = tab.id;
+      if (_notesPatientId) state.patientActiveNoteTabs[_notesPatientId] = tab.id;
+      document.getElementById("noteTabDetailsId").value = tab.id;
+      document.getElementById("noteTabNameInput").value = tab.name || "";
+      document.getElementById("noteTabDescriptionInput").value = tab.description || "";
+      renderNotesWorkspace();
+      openModal("noteTabDetailsModal");
+      document.getElementById("noteTabNameInput").focus();
+    }
+    function saveNoteTabDetails() {
+      const tabId = document.getElementById("noteTabDetailsId").value;
+      const tab = (state.noteTabs || []).find(t => t.id === tabId);
+      if (!tab) return;
+      const name = document.getElementById("noteTabNameInput").value.trim();
+      if (!name) { toast("Tab name required", "error"); return; }
+      tab.name = name;
+      tab.description = document.getElementById("noteTabDescriptionInput").value.trim();
+      save();
+      closeModal("noteTabDetailsModal");
+      renderNotesWorkspace();
     }
     function renderNotesTabs() {
       const root = document.getElementById("notesTabs");
       root.innerHTML = "";
       (state.noteTabs || []).forEach(tab => {
-        const btn = document.createElement("button"); btn.type = "button"; btn.className = "notes-tab" + (tab.id === state.activeNoteTabId ? " active" : ""); btn.textContent = tab.name;
-        btn.onclick = () => { state.activeNoteTabId = tab.id; state.patientActiveNoteTabs[_notesPatientId] = tab.id; const data = notesGroup(_notesPatientId); if (!data[tab.id]) data[tab.id] = { strokes: [] }; save(); renderNotesWorkspace(); }; root.appendChild(btn);
+        const btn = document.createElement("button"); btn.type = "button"; btn.className = "notes-tab" + (tab.id === state.activeNoteTabId ? " active" : "") + (tab.description ? " has-description" : ""); btn.textContent = tab.name; btn.title = tab.description || "Right-click or two-finger tap to rename";
+        btn.onclick = () => { state.activeNoteTabId = tab.id; state.patientActiveNoteTabs[_notesPatientId] = tab.id; const data = notesGroup(_notesPatientId); if (!data[tab.id]) data[tab.id] = { strokes: [] }; save(); renderNotesWorkspace(); };
+        btn.oncontextmenu = e => { e.preventDefault(); openNoteTabDetails(tab.id); };
+        btn.addEventListener("touchstart", e => { if (e.touches && e.touches.length >= 2) { e.preventDefault(); openNoteTabDetails(tab.id); } }, { passive: false });
+        root.appendChild(btn);
       });
       const add = document.createElement("button"); add.type = "button"; add.className = "notes-tab primary"; add.textContent = "+"; add.title = "New note tab"; add.onclick = newNoteTab; root.appendChild(add);
     }
@@ -6151,6 +6180,9 @@
     document.getElementById("cancelNoteText").onclick = () => closeModal("noteTextModal");
     document.querySelectorAll("[data-note-text-style]").forEach(btn => btn.onclick = () => { const key = btn.dataset.noteTextStyle; _noteTextStyle[key] = !_noteTextStyle[key]; btn.classList.toggle("active", _noteTextStyle[key]); });
     document.getElementById("saveNoteText").onclick = () => { const text = document.getElementById("noteTextInput").value.trim(), note = currentNoteData(); if (!text || !note || !_noteTextPoint) return; note.strokes.push({ type:"text", text, x:_noteTextPoint.x, y:_noteTextPoint.y, color:_noteColor, size:Number(document.getElementById("noteTextSize").value), ..._noteTextStyle }); save(); closeModal("noteTextModal"); drawNotesCanvas(); };
+    document.getElementById("closeNoteTabDetailsModal").onclick = () => closeModal("noteTabDetailsModal");
+    document.getElementById("cancelNoteTabDetails").onclick = () => closeModal("noteTabDetailsModal");
+    document.getElementById("saveNoteTabDetails").onclick = saveNoteTabDetails;
     document.getElementById("noteToolPencil").onclick = () => setNoteTool("pencil");
     document.getElementById("noteToolHighlighter").onclick = () => setNoteTool("highlighter");
     document.getElementById("noteToolEraser").onclick = () => { _notesTool = "eraser"; renderNotesWorkspace(); };
